@@ -71,7 +71,7 @@ class Batch:
         tgt_mask=tgt_mask&Variable(subsequent_mask(tgt.size(-1)).type_as(tgt_mask.data))
         return tgt_mask     #返回目标语言的mask
 
-class MTDdataset(Dataset):
+class MTDataset(Dataset):
     """
         自定义数据集类,用于加载机器翻译任务中的数据,该类继承自Pytorch的Dataset类
         主要功能包括：加载英文和中文句子，使用分词器进行分词，将句子转换为token ID，并填充句子长度。

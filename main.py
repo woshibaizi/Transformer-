@@ -4,7 +4,7 @@ import config
 import torch
 from torch.utils.data import DataLoader
 
-from tools.data_loader import MTDdataset
+from tools.data_loader import MTDataset
 from model.tf_model import make_model
 import logging
 import sacrebleu
