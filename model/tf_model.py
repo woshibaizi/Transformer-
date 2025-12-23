@@ -62,7 +62,7 @@ def attention(query,key,value,mask=None,dropout=None):
     #将query矩阵的最后一个维度值作为d_k
     d_k=query.size(-1)
     #将key的最后两个维度互换(转置),才能与query相乘,乘完了还要除以d_k开根号
-    scores=torch.matmul(query,key.transporse(-2,-1))/math.sqrt(d_k)
+    scores=torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
     '''
         Encoder:主要是用padding mask处理不等长序列
         Decoder:同时使用padding mask和sequence mask
@@ -84,11 +84,12 @@ def attention(query,key,value,mask=None,dropout=None):
 
 class MultiHeadedAttention(nn.Module):
     def __init__(self,h,d_model,dropout=0.1):
+        super(MultiHeadedAttention, self).__init__()
         #保证可以整除
         assert d_model%h==0
         #得到一个head的attention表示维度
         self.d_k=d_model//h
-        self.head=h
+        self.h = h
         #定义4个全连接函数,供后续作为WQ,WK,WV矩阵和最后h个多头注意力矩阵concat之后进行变换的矩阵
         self.linears=clones(nn.Linear(d_model,d_model),4)
         self.attn=None
@@ -189,8 +190,8 @@ class PositionwiseFeedForward(nn.Module):
         self.w_2=nn.Linear(d_ff,d_model)    # 第二个线性层，将维度从d_ff压缩回d_model
         self.dropout=nn.Dropout(dropout)
 
-        def forward(self,x):
-            return self.w_2(self.dropout(F.relu(self.w_1(x))))  # 先通过第一个线性层，然后应用ReLU激活函数，
+    def forward(self,x):
+        return self.w_2(self.dropout(F.relu(self.w_1(x))))  # 先通过第一个线性层，然后应用ReLU激活函数，
 
 
 """
@@ -257,7 +258,7 @@ class DecoderLayer(nn.Module):
     def __init__(self,size,self_attn,src_attn,feed_forward,dropout):
         super(DecoderLayer,self).__init__()
         self.size=size
-        self.self._attn=self_attn
+        self.self_attn = self_attn
         #与Encoder传入的Context进行Attention
         self.src_attn=src_attn
         self.feed_forward=feed_forward
@@ -298,8 +299,8 @@ class Generator(nn.Module):
         #decoder后的结果,先进入一个全连接层变为词典大小的向量
         self.proj=nn.Linear(d_model,vocab)
     def forward(self,x):
-        #然后再进行log_softmax操作(在softmax结果上再多做一次log运算)
-        return F.log_softmax(self.proj(x),dim=-1)
+        #返回未归一化的logits; 由损失函数内部完成softmax处理
+        return self.proj(x)
 
 class Transformer(nn.Module):
     def __init__(self,encoder,decoder,src_embed,tgt_embed,generator):

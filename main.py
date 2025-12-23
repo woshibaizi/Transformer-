@@ -11,11 +11,11 @@ import sacrebleu
 from tqdm import tqdm
 
 from beam_decoder import beam_search
-from model.train_utils import MultiGPULossCompute ,get_std_opt
+from model.train_utils import MultiGPULossCompute, get_std_opt
 from tools.tokenizer_utils import chinese_tokenizer_load
 from tools.create_exp_folder import create_exp_folder
 
-logging.basicConfig(format='%(asctime)s-%(leveltimes)s-%(message)s',level=logging.INFO)
+logging.basicConfig(format='%(asctime)s-%(levelname)s-%(message)s', level=logging.INFO)
 
 def run_epoch(data,model,loss_compute):
     total_tokens=0  #初始化token总数
@@ -29,7 +29,7 @@ def run_epoch(data,model,loss_compute):
 
         #使用loss_compute计算损失
         #batch.try_y:目标输出数据,batch.ntokens:非填充部分的token数量(有效token数量)
-        loss=loss_compute(out,batch.try_y,batch.ntokens)
+        loss = loss_compute(out, batch.trg_y, batch.ntokens)
 
         #累加损失和有效tokens的数量
         total_loss+=loss
@@ -139,7 +139,10 @@ def run():
                        config.d_model, config.d_ff, config.n_heads, config.dropout)
 
     #  将模型包装成数据并行模式,这样可以在多个GPU上并行处理数据，提高训练效率
-    model_par = torch.nn.DataParallel(model)
+    if torch.cuda.is_available():
+        model_par = torch.nn.DataParallel(model)
+    else:
+        model_par = model
 
     # 训练阶段，选择损失函数和优化器
     # CrossEntropyLoss是常见的分类问题损失函数，ignore_index=0表示忽略填充部分

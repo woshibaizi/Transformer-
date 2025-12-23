@@ -2,10 +2,12 @@ tqdm==4.67.1
 sentencepiece==0.2.1
 sacrebleu==2.5.1
 numpy==1.23.3
+json5==0.9.24
 
-#  python=3.10
+# python==3.10
 # 我尝试了40系列的显卡，这说明30系列的显卡可能也适用
-# torch==1.12.1，CUDA=11.3
+#torch==1.12.1
+#CUDA=11.3
 
 # 在50系列显卡（可能更高级的显卡）
 # torch=2.7.1，CUDA=12.8

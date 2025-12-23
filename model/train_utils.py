@@ -12,13 +12,11 @@ class MultiGPULossCompute:
         :param opt:优化器对象,进行参数更新
         :param chunk_size:将数据分割成多个小块进行计算的大小
         '''
-        #将生成器复制到多个GPU上
-        self.generator=generator
-        #使用nn.parallel.replicate将损失函数复制到多个gpu
-        self.criterion=nn.parallel.replicate(criterion,devices=devices)
-        self.opt=opt    #优化器
-        self.devices=devices    #设备列表,包含多个gpu的id
-        self.chunk_size=chunk_size  #每次计算的数据块大小
+        self.generator = generator
+        self.criterion = criterion
+        self.opt = opt    #优化器
+        self.devices = devices    #设备列表,包含多个gpu的id
+        self.chunk_size = chunk_size  #每次计算的数据块大小
 
     def __call__(self,out,targets,normalize):
         '''
@@ -29,55 +27,22 @@ class MultiGPULossCompute:
         :return:总损失值(乘以normalize
 
         '''
-        total=0.0   #初始化总损失值
-        #将生成器复制到多个gpu上
-        generator=nn.parallel.replicate(self.generator,devices=self.devices)
-        #将模型输出分发到多个gpu
-        out_scatter=nn.parallel.scatter(out,target_gpus=self.devices)
-        #初始化损失梯度列表(每个gpu一个)
-        out_grad=[[] for _ in out_scatter]
-        #将目标标签分发到多个gpu
-        targets=nn.parallel.scatter(targets,target_gpus=self.devices)
+        # 将模型输出通过生成器得到词表维度的分布
+        logits = self.generator(out)
+        loss = self.criterion(
+            logits.contiguous().view(-1, logits.size(-1)),
+            targets.contiguous().view(-1)
+        )
 
-        #将数据划分为多个块(chunk),进行批量计算
-        chunk_size=self.chunk_size
-        for i in range(0,out_scatter[0].size(1),chunk_size):
-            #对每个chunk进行预测
-            out_column=[[Variable(o[:,i:i+chunk_size].data,requires_grad=self.opt is not None)]
-                        for o in out_scatter]
-
-            #并行应用生成器进行预测
-            gen=nn.parallel.parallel_apply(generator,out_column)
-
-            #计算每个块的损失
-            y=[(g.contiguous().view(-1,g.size(-1)),
-               t[:,i:i+chunk_size].contiguous().view(-1))
-               for g,t in zip(gen,targets)]
-            loss =nn.parallel.parallel_apply(generator,out_column)
-
-            #汇总损失并进行规范化
-            l_=nn.parallel.gather(loss,target_device=self.devices[0])
-            l_=nn.sum()/normalize
-            total+=l_.data
-
-            #反向传播损失到Transformer的输出
-            if self.opt is not None:
-                l_.backward()
-                for j,l in enumerate(loss):
-                    out_grad[j].append(out_column[j][0].grad.data.clone())
-
-        #反向传播所有损失,通过Transformer进行参数更新
         if self.opt is not None:
-            #将所有的GPU进行梯度合并
-            out_grad=[Variable(torch.cat(og,dim=1)) for og in out_grad]
-            o1=out #保存原始的输出
-            #将梯度合并到主设备上(通常是第1个GPU)
-            o2=nn.parallel.gather(out_grad,
-                                  target_device=self.devices[0])
-            o1.backward(gradient=o2)    #进行反向传播更新参数
+            # 反向传播并更新参数
+            self.opt.optimizer.zero_grad()
+            loss.backward()
             self.opt.step()
-            self.opt.optimizer.zero_grad()  #清除梯度(使用noam优化器)
-        return total*normalize#返回中损失(乘以normalize)
+            self.opt.optimizer.zero_grad()
+
+        # 返回标量损失值（未归一化），run_epoch 会用 ntokens 做平均
+        return loss.item()
 
 class NoamOpt:
     def __init__(self,model_size,factor,warmup,optimizer):

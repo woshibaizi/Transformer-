@@ -11,9 +11,8 @@ def create_exp_folder():
     exp_folder=os.path.join(train_folder,"exp")
     if not os.path.exists(exp_folder):
         os.mkdir(exp_folder)
-        os.mkdir(exp_folder)
-        os.mkdir(os.path.join(exp_folder,"weights"))    #创建weights文件夹
-        return exp_folder,os.path.join(exp_folder,"weights")    #返回exp和weights文件夹路径
+        os.mkdir(os.path.join(exp_folder, "weights"))    #创建weights文件夹
+        return exp_folder, os.path.join(exp_folder, "weights")    #返回exp和weights文件夹路径
 
 
     #如果exp文件夹已存在,则查找exp1,exp2等

@@ -153,7 +153,7 @@ def beam_search(model, src, src_mask, max_len, pad, bos, eos, beam_size, device)
                                dec_seq,
                                subsequent_mask(dec_seq.size(1))
                                .type_as(src.data))
-            word_logprob = model.generator(out[:, -1])
+            word_logprob = torch.log_softmax(model.generator(out[:, -1]), dim=-1)
             word_logprob = word_logprob.view(n_active_inst, n_bm, -1)
 
             return word_logprob
