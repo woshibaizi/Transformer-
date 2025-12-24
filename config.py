@@ -29,7 +29,7 @@ eos_idx = 3
 
 '''训练配置'''
 batch_size=32
-epoch_num=3
+epoch_num=30
 lr=3e-4
 
 """
